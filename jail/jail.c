@@ -2329,7 +2329,7 @@ static const struct blobmsg_policy oci_policy[] = {
 	[OCI_ANNOTATIONS] = { "annotations", BLOBMSG_TYPE_TABLE },
 };
 
-static int parseOCI(const char *jsonfile)
+int parseOCI(const char *jsonfile)
 {
 	struct blob_attr *tb[__OCI_MAX];
 	struct blob_attr *cur;
