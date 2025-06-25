@@ -71,6 +71,9 @@ export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFI
 export CFLAGS="$CFLAGS -I$INSTALL_DIR/include -D_GNU_SOURCE -std=gnu99"
 export LDFLAGS="$LDFLAGS -L$INSTALL_DIR/lib"
 
+# Generate capabilities-names.h (required by jail/capabilities.c)
+./make_capabilities_h.sh "$CC" > capabilities-names.h
+
 # === Compile procd sources required for parseOCI ===
 # Build all jail/* and utils/utils.c as position-independent objects
 OBJ_DIR="$PWD/obj"
