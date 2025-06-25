@@ -76,6 +76,10 @@ export LDFLAGS="$LDFLAGS -L$INSTALL_DIR/lib"
 sed -i 's/\r$//' make_capabilities_h.sh
 bash ./make_capabilities_h.sh "$CC" > capabilities-names.h
 
+# Generate syscall-names.h (required by jail/seccomp-oci.c)
+sed -i 's/\r$//' make_syscall_h.sh
+bash ./make_syscall_h.sh "$CC" > syscall-names.h
+
 # === Compile procd sources required for parseOCI ===
 # Build all jail/* and utils/utils.c as position-independent objects
 OBJ_DIR="$PWD/obj"
