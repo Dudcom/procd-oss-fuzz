@@ -67,6 +67,7 @@ cd "$SRC/oss-fuzz-auto"
 
 # Export paths for pkg-config & compiler
 export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+: "${LDFLAGS:=}"
 export CFLAGS="$CFLAGS -I$INSTALL_DIR/include -D_GNU_SOURCE -std=gnu99"
 export LDFLAGS="$LDFLAGS -L$INSTALL_DIR/lib"
 
