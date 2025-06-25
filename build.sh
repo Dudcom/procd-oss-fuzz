@@ -81,12 +81,13 @@ bash ./make_capabilities_h.sh "$CC" > capabilities-names.h
 OBJ_DIR="$PWD/obj"
 mkdir -p "$OBJ_DIR"
 
-# Compile jail sources (rename main in jail.c to avoid symbol clash)
-for f in $(ls jail/*.c); do
-  if [[ "$f" == "jail/jail.c" ]]; then
-    $CC $CFLAGS -Dmain=procd_jail_main -c "$f" -o "$OBJ_DIR/$(basename $f .c).o"
+# Compile only the jail sources needed for parseOCI (exclude netifd.c and preload.c)
+jail_sources="jail.c capabilities.c cgroups.c cgroups-bpf.c fs.c seccomp.c seccomp-oci.c elf.c"
+for src in $jail_sources; do
+  if [[ "$src" == "jail.c" ]]; then
+    $CC $CFLAGS -Dmain=procd_jail_main -c "jail/$src" -o "$OBJ_DIR/$(basename $src .c).o"
   else
-    $CC $CFLAGS -c "$f" -o "$OBJ_DIR/$(basename $f .c).o"
+    $CC $CFLAGS -c "jail/$src" -o "$OBJ_DIR/$(basename $src .c).o"
   fi
 done
 
