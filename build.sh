@@ -30,7 +30,7 @@ if [ ! -d "libubox" ]; then
   git clone --depth 1 https://github.com/openwrt/libubox.git
 fi
 cd libubox
-rm -rf tests examples || true
+rm -rf tests || true
 mkdir -p build && cd build
 cmake .. \
   -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" \
@@ -49,7 +49,7 @@ if [ ! -d "ubus" ]; then
   git clone --depth 1 https://git.openwrt.org/project/ubus.git
 fi
 cd ubus
-rm -rf tests examples || true
+rm -rf tests || true
 mkdir -p build && cd build
 cmake .. \
   -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" \
