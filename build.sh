@@ -68,7 +68,9 @@ cd "$SRC/oss-fuzz-auto"
 # Export paths for pkg-config & compiler
 export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 : "${LDFLAGS:=}"
-export CFLAGS="$CFLAGS -I$INSTALL_DIR/include -D_GNU_SOURCE -std=gnu99"
+export CFLAGS="$CFLAGS -I$INSTALL_DIR/include -D_GNU_SOURCE -std=gnu99 -DSECCOMP_SUPPORT"
+# Add fallback for newer audit architecture constants that might not be in older headers
+export CFLAGS="$CFLAGS -DAUDIT_ARCH_LOONGARCH64=0xc00000e2"
 export LDFLAGS="$LDFLAGS -L$INSTALL_DIR/lib"
 
 # Generate capabilities-names.h (required by jail/capabilities.c)
