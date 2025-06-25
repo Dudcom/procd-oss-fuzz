@@ -18,6 +18,28 @@
 // External function declarations that parseOCI depends on
 extern int parseOCI(const char *jsonfile);
 
+// Stub implementations for functions referenced by jail.c but not needed for fuzzing
+int jail_network_start(void *ctx, char *name, int pid) {
+    // Stub - not needed for parseOCI fuzzing
+    return 0;
+}
+
+int jail_network_stop(void) {
+    // Stub - not needed for parseOCI fuzzing  
+    return 0;
+}
+
+// Provide strlcpy implementation for Linux (BSD function not available)
+size_t strlcpy(char *dst, const char *src, size_t size) {
+    size_t srclen = strlen(src);
+    if (size > 0) {
+        size_t copylen = (srclen < size - 1) ? srclen : size - 1;
+        memcpy(dst, src, copylen);
+        dst[copylen] = '\0';
+    }
+    return srclen;
+}
+
 // Fuzzer constraints
 #define MAX_FUZZ_SIZE (1024 * 1024)  // 1MB max
 #define MIN_FUZZ_SIZE 10              // Minimum reasonable JSON size

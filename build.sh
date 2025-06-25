@@ -106,7 +106,7 @@ $CC $CFLAGS -c procd-fuzz.c -o "$OBJ_DIR/fuzzer.o"
 # Link statically
 $CC $CFLAGS $LIB_FUZZING_ENGINE \
   "$OBJ_DIR"/*.o \
-  $LDFLAGS -static -lubus -lubox -ljson-c -pthread -o $OUT/procd_parseoci_fuzzer
+  $LDFLAGS -lubus -lubox -lblobmsg_json -ljson-c -pthread -o $OUT/procd_parseoci_fuzzer
 
 # Seed corpus directory (empty – OSS-Fuzz will populate) 
 mkdir -p $OUT/procd_parseoci_fuzzer_seed_corpus
