@@ -63,7 +63,7 @@ make -j$(nproc)
 make install
 cd "$DEPS_DIR"
 
-cd "$SRC/oss-fuzz-auto"
+cd "$SRC/procd-oss-fuzz"
 
 # Export paths for pkg-config & compiler
 export PKG_CONFIG_PATH="$INSTALL_DIR/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
