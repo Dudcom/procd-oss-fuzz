@@ -111,38 +111,19 @@ static int validate_fuzz_input(const uint8_t *data, size_t size) {
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     int result;
     
-    printf("LLVMFuzzerTestOneInput: Called with size %zu\n", size);
-    fflush(stdout);
-    
     // Validate input before processing
     if (!validate_fuzz_input(data, size)) {
-        printf("LLVMFuzzerTestOneInput: Input validation failed\n");
-        fflush(stdout);
         return 0;
     }
     
-    printf("LLVMFuzzerTestOneInput: Input validation passed\n");
-    fflush(stdout);
-    
     // Create temporary JSON file with fuzz data
     if (create_temp_json_file(data, size) != 0) {
-        printf("LLVMFuzzerTestOneInput: Failed to create temp file\n");
-        fflush(stdout);
         goto cleanup;
     }
     
-    printf("LLVMFuzzerTestOneInput: Created temp file: %s\n", temp_filename);
-    fflush(stdout);
-    
     // Call parseOCI with the temporary file
     // This is the main fuzzing target
-    printf("LLVMFuzzerTestOneInput: Calling parseOCI\n");
-    fflush(stdout);
-    
     result = parseOCI(temp_filename);
-    
-    printf("LLVMFuzzerTestOneInput: parseOCI returned %d\n", result);
-    fflush(stdout);
     
     // Note: We ignore the result intentionally - we're looking for crashes,
     // not correctness. parseOCI is expected to fail on invalid input.
@@ -152,19 +133,14 @@ cleanup:
     // Clean up temporary file
     cleanup_temp_file();
     
-    printf("LLVMFuzzerTestOneInput: Cleanup complete\n");
-    fflush(stdout);
-    
     return 0;
 }
 
 // Initialize function called once at startup
 int LLVMFuzzerInitialize(int *argc, char ***argv) {
-    // Comment out stderr redirection to see error messages
-    // freopen("/dev/null", "w", stderr);
-    
-    printf("LLVMFuzzerInitialize: Starting fuzzer initialization\n");
-    fflush(stdout);
+    // Suppress error messages to avoid spam during fuzzing
+    // You might want to comment this out during development
+    freopen("/dev/null", "w", stderr);
     
     return 0;
 }
