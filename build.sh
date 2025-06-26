@@ -126,6 +126,7 @@ cat > copy_deps.sh << 'EOFSCRIPT'
 #!/bin/bash
 BINARY="$1"
 OUT_LIB="$2"
+CUSTOM_LIB_DIR="$3"
 
 # Get all dependencies using ldd
 ldd "$BINARY" 2>/dev/null | while read line; do
@@ -144,12 +145,14 @@ ldd "$BINARY" 2>/dev/null | while read line; do
 done
 
 # Also copy any shared libraries from our custom install directory
-if [[ -d "$INSTALL_DIR/lib" ]]; then
-    echo "Copying libraries from custom install directory..."
-    find "$INSTALL_DIR/lib" -name "*.so*" -type f | while read lib_file; do
-        lib_name=$(basename "$lib_file")
-        echo "Copying custom library $lib_name from $lib_file"
-        cp "$lib_file" "$OUT_LIB/" 2>/dev/null || true
+if [[ -d "$CUSTOM_LIB_DIR" ]]; then
+    echo "Copying libraries from custom install directory ($CUSTOM_LIB_DIR)..."
+    for lib_file in "$CUSTOM_LIB_DIR"/*.so*; do
+        if [[ -f "$lib_file" ]]; then
+            lib_name=$(basename "$lib_file")
+            echo "Copying custom library $lib_name from $lib_file"
+            cp "$lib_file" "$OUT_LIB/" 2>/dev/null || true
+        fi
     done
 fi
 EOFSCRIPT
@@ -165,7 +168,7 @@ echo "Direct ldd output for procd-fuzzer:"
 ldd "$OUT/procd-fuzzer" || echo "ldd failed"
 
 # Run the dependency copy script
-./copy_deps.sh "$OUT/procd-fuzzer" "$OUT/lib"
+./copy_deps.sh "$OUT/procd-fuzzer" "$OUT/lib" "$INSTALL_DIR/lib"
 
 # Verify the binary dependencies and rpath
 echo "Checking binary dependencies..."
