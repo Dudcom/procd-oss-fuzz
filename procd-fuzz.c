@@ -136,11 +136,3 @@ cleanup:
     return 0;
 }
 
-// Initialize function called once at startup
-int LLVMFuzzerInitialize(int *argc, char ***argv) {
-    // Suppress error messages to avoid spam during fuzzing
-    // You might want to comment this out during development
-    freopen("/dev/null", "w", stderr);
-    
-    return 0;
-}
