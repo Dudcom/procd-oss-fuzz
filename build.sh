@@ -142,6 +142,16 @@ ldd "$BINARY" 2>/dev/null | while read line; do
         fi
     fi
 done
+
+# Also copy any shared libraries from our custom install directory
+if [[ -d "$INSTALL_DIR/lib" ]]; then
+    echo "Copying libraries from custom install directory..."
+    find "$INSTALL_DIR/lib" -name "*.so*" -type f | while read lib_file; do
+        lib_name=$(basename "$lib_file")
+        echo "Copying custom library $lib_name from $lib_file"
+        cp "$lib_file" "$OUT_LIB/" 2>/dev/null || true
+    done
+fi
 EOFSCRIPT
 
 chmod +x copy_deps.sh
