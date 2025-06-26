@@ -39,7 +39,7 @@ cmake .. \
   -DBUILD_EXAMPLES=OFF \
   -DBUILD_TESTS=OFF \
   -DBUILD_STATIC=ON \
-  -DBUILD_SHARED_LIBS=OFF
+  -DBUILD_SHARED_LIBS=ON
 make -j$(nproc)
 make install
 cd "$DEPS_DIR"
@@ -58,7 +58,7 @@ cmake .. \
   -DBUILD_EXAMPLES=OFF \
   -DBUILD_TESTS=OFF \
   -DBUILD_STATIC=ON \
-  -DBUILD_SHARED_LIBS=OFF
+  -DBUILD_SHARED_LIBS=ON
 make -j$(nproc)
 make install
 cd "$DEPS_DIR"
@@ -155,6 +155,16 @@ fi
 EOFSCRIPT
 
 chmod +x copy_deps.sh
+
+# Debug: Show what libraries are available in our install directory
+echo "Libraries in custom install directory ($INSTALL_DIR/lib):"
+ls -la "$INSTALL_DIR/lib/" 2>/dev/null || echo "No custom lib directory found"
+
+# Debug: Show what ldd finds for our binary
+echo "Direct ldd output for procd-fuzzer:"
+ldd "$OUT/procd-fuzzer" || echo "ldd failed"
+
+# Run the dependency copy script
 ./copy_deps.sh "$OUT/procd-fuzzer" "$OUT/lib"
 
 # Verify the binary dependencies and rpath
