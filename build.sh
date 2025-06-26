@@ -54,6 +54,7 @@ mkdir -p build && cd build
 cmake .. \
   -DCMAKE_INSTALL_PREFIX="$INSTALL_DIR" \
   -DCMAKE_C_FLAGS="$CFLAGS" \
+  -DCMAKE_EXE_LINKER_FLAGS="-lrt" \
   -DBUILD_LUA=OFF \
   -DBUILD_EXAMPLES=OFF \
   -DBUILD_TESTS=OFF \
@@ -109,7 +110,7 @@ $CC $CFLAGS $LIB_FUZZING_ENGINE \
   "$INSTALL_DIR/lib/libubus.a" \
   "$INSTALL_DIR/lib/libubox.a" \
   "$INSTALL_DIR/lib/libblobmsg_json.a" \
-  $LDFLAGS -ljson-c -pthread -o $OUT/procd-fuzzer
+  $LDFLAGS -ljson-c -pthread -lrt -o $OUT/procd-fuzzer
 
 # Seed corpus directory (empty – OSS-Fuzz will populate) 
 mkdir -p $OUT/procd-fuzzer_seed_corpus
