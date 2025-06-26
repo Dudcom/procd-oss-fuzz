@@ -111,5 +111,56 @@ $CC $CFLAGS $LIB_FUZZING_ENGINE \
 # Seed corpus directory (empty – OSS-Fuzz will populate) 
 mkdir -p $OUT/procd-fuzzer_seed_corpus
 
+# Create lib directory for shared libraries
+mkdir -p $OUT/lib
+
+# This is useful if the linker flags don't work properly
+echo "Ensuring correct rpath with patchelf..."
+patchelf --set-rpath '$ORIGIN/lib' $OUT/procd-fuzzer
+
+# Copy all required shared library dependencies
+echo "Finding and copying all shared library dependencies..."
+
+# Create a temporary script to copy dependencies
+cat > copy_deps.sh << 'EOFSCRIPT'
+#!/bin/bash
+BINARY="$1"
+OUT_LIB="$2"
+
+# Get all dependencies using ldd
+ldd "$BINARY" 2>/dev/null | while read line; do
+    # Extract library path from ldd output
+    if [[ $line =~ '=>' ]]; then
+        lib_path=$(echo "$line" | awk '{print $3}')
+        if [[ -f "$lib_path" ]]; then
+            lib_name=$(basename "$lib_path")
+            # Skip system libraries that are always available
+            if [[ ! "$lib_name" =~ ^(ld-linux|libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libresolv\.so) ]]; then
+                echo "Copying $lib_name from $lib_path"
+                cp "$lib_path" "$OUT_LIB/" 2>/dev/null || true
+            fi
+        fi
+    fi
+done
+EOFSCRIPT
+
+chmod +x copy_deps.sh
+./copy_deps.sh "$OUT/procd-fuzzer" "$OUT/lib"
+
+# Verify the binary dependencies and rpath
+echo "Checking binary dependencies..."
+ldd $OUT/procd-fuzzer || echo "ldd may show missing libs due to \$ORIGIN rpath, but they should be in lib/"
+
+echo "Checking rpath..."
+readelf -d $OUT/procd-fuzzer | grep -E "(RPATH|RUNPATH)" || echo "No rpath found"
+
+# Verify that all required shared libraries are in $OUT/lib
+echo "Shared libraries in $OUT/lib:"
+ls -la $OUT/lib/
+
+# Clean up object files and temporary scripts
+rm -f *.o copy_deps.sh
+
 echo "Build completed successfully!"
 echo "Fuzzer binary: $OUT/procd-fuzzer"
+echo "Shared libraries: $OUT/lib/"
