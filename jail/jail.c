@@ -1161,7 +1161,7 @@ static void signals_init(void)
 	}
 }
 
-static void pre_exec_jail(struct uloop_timeout *t);
+void pre_exec_jail(struct uloop_timeout *t);
 static struct uloop_timeout pre_exec_timeout = {
 	.cb = pre_exec_jail,
 };
@@ -1234,7 +1234,7 @@ static int exec_jail(void *arg)
 	return -1;
 }
 
-static void pre_exec_jail(struct uloop_timeout *t)
+void pre_exec_jail(struct uloop_timeout *t)
 {
 	if ((opts.namespace & CLONE_NEWNS) && build_jail_fs()) {
 		ERROR("failed to build jail fs\n");
@@ -2573,7 +2573,7 @@ static struct ubus_object container_object = {
 	.n_methods = ARRAY_SIZE(container_methods),
 };
 
-static void post_main(struct uloop_timeout *t);
+void post_main(struct uloop_timeout *t);
 static struct uloop_timeout post_main_timeout = {
 	.cb = post_main,
 };
@@ -2589,7 +2589,7 @@ struct env_e {
 	char *envarg;
 };
 
-int main(int argc, char **argv)
+int procd_jail_main(int argc, char **argv)
 {
 	uid_t uid = getuid();
 	const char log[] = "/dev/log";
@@ -2940,7 +2940,7 @@ errout:
 	return ret;
 }
 
-static void post_main(struct uloop_timeout *t)
+void post_main(struct uloop_timeout *t)
 {
 	if (apply_rlimits()) {
 		ERROR("error applying resource limits\n");
