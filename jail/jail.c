@@ -93,7 +93,7 @@ struct mknod_args {
 	gid_t gid;
 };
 
-static struct {
+struct {
 	char *name;
 	char *hostname;
 	char **jail_argv;

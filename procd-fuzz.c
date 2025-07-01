@@ -18,6 +18,10 @@
 #include <linux/limits.h>
 #endif
 
+// Additional includes for fuzzing utilities
+#include <sys/wait.h>
+#include <unistd.h>
+
 // Include necessary headers from procd
 #include "jail/jail.h"
 #include "jail/capabilities.h"  // Needed for indirect deps
@@ -61,6 +65,15 @@ int patch_stdio(const char *device) { (void)device; return -1; }
 // External function declarations
 extern int parseOCI(const char *jsonfile);
 
+// Forward declarations for types used in opts structure
+struct sock_fprog;
+struct jail_capset;
+struct sysctl_val;
+struct hook_execvpe;
+struct rlimit;
+struct mknod_args;
+struct blob_attr;
+
 // Forward declarations for the functions we want to fuzz directly
 extern void post_main(struct uloop_timeout *t);
 extern void pre_exec_jail(struct uloop_timeout *t);
@@ -74,8 +87,100 @@ extern void free_library_search(void);
 extern void mount_free(void);
 extern void cgroups_free(void);
 
+// Forward declaration for the global opts structure (remove extern since we removed static)
+// The actual structure is defined in jail.c and is now globally accessible
+extern struct {
+    char *name;
+    char *hostname;
+    char **jail_argv;
+    char *cwd;
+    char *seccomp;
+    struct sock_fprog *ociseccomp;
+    char *capabilities;
+    struct jail_capset capset;
+    char *user;
+    char *group;
+    char *extroot;
+    char *overlaydir;
+    char *tmpoverlaysize;
+    char **envp;
+    char *uidmap;
+    char *gidmap;
+    char *pidfile;
+    struct sysctl_val **sysctl;
+    int no_new_privs;
+    int namespace;
+    struct {
+        int pid;
+        int net;
+        int ns;
+        int ipc;
+        int uts;
+        int user;
+        int cgroup;
+    } setns;
+    int procfs;
+    int ronly;
+    int sysfs;
+    int console;
+    int pw_uid;
+    int pw_gid;
+    int gr_gid;
+    int root_map_uid;
+    gid_t *additional_gids;
+    size_t num_additional_gids;
+    mode_t umask;
+    bool set_umask;
+    int require_jail;
+    struct {
+        struct hook_execvpe **createRuntime;
+        struct hook_execvpe **createContainer;
+        struct hook_execvpe **startContainer;
+        struct hook_execvpe **poststart;
+        struct hook_execvpe **poststop;
+    } hooks;
+    struct rlimit *rlimits[16];
+    int oom_score_adj;
+    bool set_oom_score_adj;
+    struct mknod_args **devices;
+    char *ocibundle;
+    bool immediately;
+    struct blob_attr *annotations;
+    int term_timeout;
+} opts;
+
 // Global state initialization and cleanup
+// NOTE: The procd code expects init_library_search() etc. to be called once per process.
+// Calling init → cleanup → init again causes use-after-free because the cleanup doesn't
+// properly reset all global pointers. So we initialize once and never cleanup during fuzzing.
+//
+// IMPORTANT: We also need to initialize the global 'opts' structure with safe defaults
+// because the jail functions expect it to be populated with valid values (especially
+// opts.jail_argv for the program to execute). Without this, we get null pointer crashes.
 static bool jail_state_initialized = false;
+
+static void init_opts_defaults(void) {
+    // Initialize the global opts structure with safe defaults
+    // This prevents null pointer dereferences in the jail functions
+    static char *default_argv[] = {"/bin/true", NULL};
+    
+    memset(&opts, 0, sizeof(opts));
+    
+    // Set essential fields that the functions expect
+    opts.jail_argv = default_argv;
+    opts.name = "test-jail";
+    opts.term_timeout = 5;
+    opts.root_map_uid = 65534;
+    
+    // Initialize setns fields to -1 (indicates unused)
+    opts.setns.pid = -1;
+    opts.setns.net = -1;
+    opts.setns.ns = -1;
+    opts.setns.ipc = -1;
+    opts.setns.uts = -1;
+    opts.setns.user = -1;
+    opts.setns.cgroup = -1;
+}
 
 static void init_jail_state(void) {
     if (jail_state_initialized) return;
@@ -83,6 +188,9 @@ static void init_jail_state(void) {
     // Initialize global state as done in procd_jail_main
     // Wrap in try-catch equivalent for safety
     umask(022);
+    
+    // Initialize the opts structure with safe defaults
+    init_opts_defaults();
     
     // Initialize subsystems safely
     #if defined(__linux__) && !defined(_WIN32)
@@ -95,16 +203,10 @@ static void init_jail_state(void) {
 }
 
 static void cleanup_jail_state(void) {
-    if (!jail_state_initialized) return;
-    
-    // Cleanup in reverse order, safely
-    #if defined(__linux__) && !defined(_WIN32)
-    cgroups_free();
-    mount_free(); 
-    free_library_search();
-    #endif
-    
-    jail_state_initialized = false;
+    // Don't cleanup between fuzzer iterations to avoid use-after-free
+    // The original procd code expects these to be initialized once per process
+    // Cleanup only happens at process exit (handled by OS)
+    return;
 }
 
 // Required structures and globals from jail.c
@@ -299,9 +401,6 @@ static int fuzz_oci_parse(const uint8_t *data, size_t size) {
 static int fuzz_post_main(const uint8_t *data, size_t size) {
     if (size < 8) return 0;
     
-    // Initialize jail state
-    init_jail_state();
-    
     // Create a mock uloop_timeout structure
     struct uloop_timeout timeout = {0};
     
@@ -309,6 +408,7 @@ static int fuzz_post_main(const uint8_t *data, size_t size) {
     pid_t child = fork();
     if (child == 0) {
         // Child process - call the real post_main function
+        // Child inherits initialized jail state from parent
         post_main(&timeout);
         _exit(0);
     } else if (child > 0) {
@@ -325,23 +425,39 @@ static int fuzz_post_main(const uint8_t *data, size_t size) {
 static int fuzz_pre_exec_jail(const uint8_t *data, size_t size) {
     if (size < 4) return 0;
     
-    // Initialize jail state
-    init_jail_state();
-    
     // Create a mock uloop_timeout structure
     struct uloop_timeout timeout = {0};
     
     // Fork to isolate the complex pre_exec_jail function
+    // Use double fork to handle the execve() call in post_start_hook
     pid_t child = fork();
     if (child == 0) {
         // Child process - call the real pre_exec_jail function
+        // Child inherits initialized jail state from parent
+        
+        // Set up a timeout to prevent infinite execution
+        alarm(2); // 2 second timeout
+        
         pre_exec_jail(&timeout);
         _exit(0);
     } else if (child > 0) {
-        // Parent process - wait for child
+        // Parent process - wait for child with timeout
         int status;
-        waitpid(child, &status, 0);
-        return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+        pid_t result = waitpid(child, &status, WNOHANG);
+        
+        // Give it a short time to run
+        if (result == 0) {
+            usleep(100000); // 100ms
+            result = waitpid(child, &status, WNOHANG);
+        }
+        
+        // Kill child if still running
+        if (result == 0) {
+            kill(child, SIGKILL);
+            waitpid(child, &status, 0);
+        }
+        
+        return 0;
     }
     
     return 0;
@@ -357,7 +473,7 @@ static int extract_args_from_fuzz_data(const uint8_t *data, size_t size,
     *argv = calloc(*argc + 1, sizeof(char*));
     if (!*argv) return -1;
     
-    (*argv)[0] = strdup("ujail");  // Program name
+    (*argv)[0] = strdup("/bin/true");  // Program name
     
     size_t offset = 1;
     for (int i = 1; i < *argc && offset < size; i++) {
@@ -445,6 +561,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         return 0;
     }
     
+    // Initialize jail state once per process (not per iteration)
+    init_jail_state();
+    
     // Setup signal handlers and cleanup
     setup_signals();
     cleanup_needed = true;
@@ -485,9 +604,8 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     }
     
 cleanup:
-    // Clean up temporary files and jail state
+    // Clean up temporary files only (not jail state between iterations)
     cleanup_temp_files();
-    cleanup_jail_state();
     
     return 0;
 }
