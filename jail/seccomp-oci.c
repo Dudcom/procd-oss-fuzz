@@ -217,7 +217,7 @@ struct sock_fprog *parseOCIlinuxseccomp(struct blob_attr *msg)
 		      tb, blobmsg_data(msg), blobmsg_len(msg));
 
 	if (!tb[OCI_LINUX_SECCOMP_DEFAULTACTION]) {
-		ERROR("seccomp: no default action set\n");
+		// ERROR("seccomp: no default action set\n");
 		return NULL;
 	}
 
